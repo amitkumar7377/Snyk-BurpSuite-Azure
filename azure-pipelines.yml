@@ -2,7 +2,7 @@ trigger:
   - main
 
 pool:
-  name: AMIT7AKR  # Change if you use a different self-hosted agent pool name
+  name: azure-snyk-agent  # Change if you use a different self-hosted agent pool name
 
 variables:
   SNYK_TOKEN: $(SNYK_TOKEN)  # Set this securely in Azure DevOps pipeline variables
