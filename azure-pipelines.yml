@@ -1,69 +1,55 @@
-trigger: none  # Manual trigger only
+trigger:
+  - main
 
 pool:
-  name: 'azure-snyk-agent'
+  name: AMIT7AKR  # Change if you use a different self-hosted agent pool name
 
 variables:
-  environment: 'demo-env'
+  SNYK_TOKEN: $(SNYK_TOKEN)  # Set this securely in Azure DevOps pipeline variables
 
-stages:
-# === Stage 1: SAST with Snyk ===
-- stage: SAST
-  displayName: "SAST - Static Analysis with Snyk"
-  jobs:
-  - job: snykScan
-    displayName: "Run Snyk SAST Scan"
-    continueOnError: true
-    steps:
-    - script: echo "🔍 Starting Snyk CLI setup and authentication"
+steps:
 
-    - script: |
-        curl https://static.snyk.io/cli/latest/snyk-linux -o snyk
-        chmod +x snyk
-        sudo mv snyk /usr/local/bin
-      displayName: "Install Snyk CLI"
+# Step 1: Checkout code
+- checkout: self
 
-    - script: |
-        snyk auth $(SNYK_TOKEN)
-      displayName: "Authenticate Snyk CLI"
+# Step 2: Install Snyk CLI (Windows)
+- task: CmdLine@2
+  displayName: 'Install Snyk CLI (Windows)'
+  inputs:
+    script: |
+      curl -L https://static.snyk.io/cli/latest/snyk-win.exe -o snyk.exe
+      mkdir %USERPROFILE%\snyk
+      move snyk.exe %USERPROFILE%\snyk\snyk.exe
+      echo ##vso[task.setvariable variable=SNYK_PATH]%USERPROFILE%\snyk
 
-    - script: |
-        echo "📂 No real code to scan — running test as demo"
-        snyk test || echo "⚠️ No project files found, test skipped"
-      displayName: "Run Snyk Test"
+# Step 3: Verify Snyk installation
+- task: CmdLine@2
+  displayName: 'Verify Snyk CLI'
+  inputs:
+    script: |
+      set PATH=%SNYK_PATH%;%PATH%
+      %SNYK_PATH%\snyk.exe --version
 
-    - script: |
-        echo "📡 Sending snapshot to Snyk dashboard..."
-        snyk monitor || echo "⚠️ Monitor failed or no manifest, continuing anyway"
-      displayName: "Send to Snyk Dashboard"
+# Step 4: Authenticate with Snyk
+- task: CmdLine@2
+  displayName: 'Authenticate Snyk'
+  inputs:
+    script: |
+      set PATH=%SNYK_PATH%;%PATH%
+      %SNYK_PATH%\snyk.exe auth %SNYK_TOKEN%
 
-# === Stage 2: Manual Approval (Simulated) ===
-- stage: Approval
-  displayName: "Approval Stage"
-  dependsOn: SAST
-  condition: succeededOrFailed()
-  jobs:
-  - job: manualApproval
-    displayName: "Simulated Manual Approval"
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    - script: |
-        echo "⏳ Waiting for manual approval simulation..."
-        sleep 5
-        echo "✅ Approval simulated"
-      displayName: "Simulate Approval Delay"
+# Step 5: Run Snyk test on all supported projects
+- task: CmdLine@2
+  displayName: 'Run Snyk Test'
+  inputs:
+    script: |
+      set PATH=%SNYK_PATH%;%PATH%
+      %SNYK_PATH%\snyk.exe test --all-projects || echo "⚠️ Issues found by Snyk test"
 
-# === Stage 3: Deploy (Demo) ===
-- stage: Deploy
-  displayName: "Deploy Stage"
-  dependsOn: Approval
-  condition: succeededOrFailed()
-  jobs:
-  - job: deployJob
-    displayName: "Demo Deployment Job"
-    pool:
-      vmImage: 'ubuntu-latest'
-    steps:
-    - script: echo "🚀 Demo Deployment Step - No actual deployment done"
-      displayName: "Demo Deploy Step"
+# Step 6: Send project snapshot to Snyk dashboard
+- task: CmdLine@2
+  displayName: 'Send Project to Snyk Monitor'
+  inputs:
+    script: |
+      set PATH=%SNYK_PATH%;%PATH%
+      %SNYK_PATH%\snyk.exe monitor --all-projects || echo "⚠️ Snyk monitor failed"
