@@ -1,24 +1,69 @@
-trigger: none  # Prevents automatic triggers
+trigger: none  # Manual trigger only
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  demoMode: true
   environment: 'demo-env'
 
 stages:
-- stage: DemoStage
-  displayName: "Demo Stage"
+# === Stage 1: SAST with Snyk ===
+- stage: SAST
+  displayName: "SAST - Static Analysis with Snyk"
   jobs:
-  - job: DemoJob
-    displayName: "Demo Job"
+  - job: snykScan
+    displayName: "Run Snyk SAST Scan"
+    continueOnError: true
     steps:
-    - script: echo "🌟 This is a demo pipeline without source code!"
-      displayName: "Echo Demo Message"
+    - script: echo "🔍 Starting Snyk CLI setup and authentication"
 
     - script: |
-        echo "📌 Demo Variables:"
-        echo "Demo Mode: $(demoMode)"
-        echo "Environment: $(environment)"
-      displayName: "Print Variables"
+        curl https://static.snyk.io/cli/latest/snyk-linux -o snyk
+        chmod +x snyk
+        sudo mv snyk /usr/local/bin
+      displayName: "Install Snyk CLI"
+
+    - script: |
+        snyk auth $(SNYK_TOKEN)
+      displayName: "Authenticate Snyk CLI"
+
+    - script: |
+        echo "📂 No real code to scan — running test as demo"
+        snyk test || echo "⚠️ No project files found, test skipped"
+      displayName: "Run Snyk Test"
+
+    - script: |
+        echo "📡 Sending snapshot to Snyk dashboard..."
+        snyk monitor || echo "⚠️ Monitor failed or no manifest, continuing anyway"
+      displayName: "Send to Snyk Dashboard"
+
+# === Stage 2: Manual Approval (Simulated) ===
+- stage: Approval
+  displayName: "Approval Stage"
+  dependsOn: SAST
+  condition: succeededOrFailed()
+  jobs:
+  - job: manualApproval
+    displayName: "Simulated Manual Approval"
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - script: |
+        echo "⏳ Waiting for manual approval simulation..."
+        sleep 5
+        echo "✅ Approval simulated"
+      displayName: "Simulate Approval Delay"
+
+# === Stage 3: Deploy (Demo) ===
+- stage: Deploy
+  displayName: "Deploy Stage"
+  dependsOn: Approval
+  condition: succeededOrFailed()
+  jobs:
+  - job: deployJob
+    displayName: "Demo Deployment Job"
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - script: echo "🚀 Demo Deployment Step - No actual deployment done"
+      displayName: "Demo Deploy Step"
