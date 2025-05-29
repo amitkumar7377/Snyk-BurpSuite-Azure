@@ -1,7 +1,7 @@
 trigger: none  # Manual trigger only
 
 pool:
-  vmImage: 'ubuntu-latest'
+  name: 'azure-snyk-agent'
 
 variables:
   environment: 'demo-env'
