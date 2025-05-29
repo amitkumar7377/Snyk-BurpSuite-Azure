@@ -1,0 +1,24 @@
+trigger: none  # Prevents automatic triggers
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  demoMode: true
+  environment: 'demo-env'
+
+stages:
+- stage: DemoStage
+  displayName: "Demo Stage"
+  jobs:
+  - job: DemoJob
+    displayName: "Demo Job"
+    steps:
+    - script: echo "🌟 This is a demo pipeline without source code!"
+      displayName: "Echo Demo Message"
+
+    - script: |
+        echo "📌 Demo Variables:"
+        echo "Demo Mode: $(demoMode)"
+        echo "Environment: $(environment)"
+      displayName: "Print Variables"
